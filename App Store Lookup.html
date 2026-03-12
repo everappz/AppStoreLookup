@@ -1,0 +1,1440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>App Store Lookup</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root {
+  --bg: #0a0a0c;
+  --surface: #141418;
+  --surface2: #1c1c22;
+  --border: #2a2a33;
+  --text: #e8e8ed;
+  --text2: #8e8e9a;
+  --accent: #3b82f6;
+  --accent2: #60a5fa;
+  --green: #34d399;
+  --orange: #fb923c;
+  --pink: #f472b6;
+  --radius: 12px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+.grain {
+  position: fixed; inset: 0; z-index: 9999; pointer-events: none; opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+header h1 {
+  font-size: 2.4rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, var(--accent2), var(--pink));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 8px;
+}
+
+header p {
+  color: var(--text2);
+  font-size: 0.95rem;
+}
+
+.search-box {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 40px;
+}
+
+.search-box input {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 20px;
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.search-box input:focus {
+  border-color: var(--accent);
+}
+
+.search-box input::placeholder {
+  color: var(--text2);
+  font-family: 'DM Sans', sans-serif;
+}
+
+.search-box button {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  padding: 14px 28px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: transform 0.15s, background 0.2s;
+  white-space: nowrap;
+}
+
+.search-box button:hover { background: var(--accent2); transform: translateY(-1px); }
+.search-box button:active { transform: translateY(0); }
+.search-box button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.error {
+  background: #2d1215;
+  border: 1px solid #5c2328;
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  color: #fca5a5;
+  margin-bottom: 24px;
+  font-size: 0.9rem;
+  display: none;
+}
+
+.loader {
+  text-align: center;
+  padding: 60px;
+  display: none;
+}
+
+.loader .spinner {
+  width: 36px; height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+#result { display: none; }
+
+/* App Header Card */
+.app-header {
+  display: flex;
+  gap: 28px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 32px;
+  margin-bottom: 32px;
+  align-items: flex-start;
+}
+
+.app-icon {
+  width: 128px; height: 128px;
+  border-radius: 28px;
+  flex-shrink: 0;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  position: relative;
+  overflow: hidden;
+}
+
+.app-icon img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+}
+
+.app-icon .download-overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+  cursor: pointer;
+}
+
+.app-icon:hover .download-overlay { opacity: 1; }
+
+.download-overlay span {
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.app-meta { flex: 1; min-width: 0; }
+
+.app-meta h2 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+}
+
+.app-meta .developer {
+  color: var(--accent2);
+  font-size: 0.95rem;
+  margin-bottom: 12px;
+}
+
+.app-meta .badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  color: var(--text2);
+}
+
+.badge .val { color: var(--text); font-weight: 600; }
+.badge.green .val { color: var(--green); }
+.badge.orange .val { color: var(--orange); }
+.badge.pink .val { color: var(--pink); }
+
+.app-links {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.app-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent2);
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 500;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.app-links a:hover {
+  background: var(--surface2);
+  border-color: var(--accent);
+}
+
+/* Section styling */
+.section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px 32px;
+  margin-bottom: 24px;
+}
+
+.section h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+
+/* Detail grid */
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.detail-item {
+  background: var(--surface2);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.detail-item .label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text2);
+  margin-bottom: 4px;
+}
+
+.detail-item .value {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.detail-item .value a {
+  color: var(--accent2);
+  text-decoration: none;
+}
+
+.detail-item .value a:hover { text-decoration: underline; }
+
+/* Description */
+.description {
+  font-size: 0.9rem;
+  color: var(--text2);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  max-height: 200px;
+  overflow: hidden;
+  position: relative;
+  transition: max-height 0.4s ease;
+}
+
+.description.expanded { max-height: none; }
+
+.description-fade {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 60px;
+  background: linear-gradient(transparent, var(--surface));
+  pointer-events: none;
+}
+
+.description.expanded + .description-fade { display: none; }
+
+.toggle-desc {
+  background: none;
+  border: none;
+  color: var(--accent2);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.85rem;
+  cursor: pointer;
+  margin-top: 8px;
+  padding: 0;
+  font-weight: 500;
+}
+
+/* Screenshots */
+.screenshots-scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+  scroll-snap-type: x mandatory;
+}
+
+.screenshots-scroll::-webkit-scrollbar { height: 6px; }
+.screenshots-scroll::-webkit-scrollbar-track { background: var(--surface2); border-radius: 3px; }
+.screenshots-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.screenshot-item {
+  flex-shrink: 0;
+  scroll-snap-align: start;
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  transition: transform 0.2s;
+}
+
+.screenshot-item:hover { transform: scale(1.02); }
+
+.screenshot-item img {
+  height: 280px;
+  width: auto;
+  display: block;
+}
+
+.screenshot-item .dl-btn {
+  position: absolute;
+  bottom: 8px; right: 8px;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.72rem;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 600;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.screenshot-item:hover .dl-btn { opacity: 1; }
+
+/* Artwork sizes */
+.artwork-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+}
+
+.artwork-card {
+  background: var(--surface2);
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+}
+
+.artwork-card img {
+  width: 80px; height: 80px;
+  border-radius: 18px;
+  margin-bottom: 10px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+
+.artwork-card .size-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.artwork-card a {
+  display: inline-block;
+  font-size: 0.72rem;
+  color: var(--accent2);
+  text-decoration: none;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.artwork-card a:hover { background: var(--surface); }
+
+/* Developer apps grid */
+.dev-apps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.dev-app-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.15s;
+}
+
+.dev-app-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.dev-app-card img {
+  width: 64px; height: 64px;
+  border-radius: 14px;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.dev-app-card .info { flex: 1; min-width: 0; }
+.dev-app-card .info .name { font-weight: 600; font-size: 0.9rem; margin-bottom: 2px; }
+.dev-app-card .info .genre { font-size: 0.78rem; color: var(--text2); margin-bottom: 6px; }
+.dev-app-card .info .meta { font-size: 0.72rem; color: var(--text2); }
+.dev-app-card .info .meta .val { color: var(--green); font-weight: 600; }
+
+/* Raw JSON */
+.raw-json {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--text2);
+  overflow-x: auto;
+  max-height: 400px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* Zip download button */
+.zip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 20px;
+  color: var(--accent2);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.2s, transform 0.15s;
+  margin-top: 16px;
+}
+
+.zip-btn:hover {
+  background: var(--surface);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.zip-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.zip-btn .zip-progress {
+  font-size: 0.75rem;
+  color: var(--text2);
+  font-weight: 400;
+}
+
+/* Section header with action */
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.section-head h3 {
+  margin-bottom: 0;
+}
+
+/* Disclaimer footer */
+.disclaimer {
+  margin-top: 48px;
+  padding: 24px 0;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  color: var(--text2);
+  font-size: 0.78rem;
+  line-height: 1.8;
+}
+
+.disclaimer a {
+  color: var(--accent2);
+  text-decoration: none;
+}
+
+.disclaimer a:hover {
+  text-decoration: underline;
+}
+
+/* Country selector */
+.country-select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 12px;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.85rem;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238e8e9a' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 30px;
+}
+
+.country-select:focus { border-color: var(--accent); }
+
+/* Autocomplete */
+.autocomplete-wrap {
+  position: relative;
+  flex: 1;
+}
+
+.autocomplete-wrap input {
+  width: 100%;
+}
+
+.autocomplete-list {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  max-height: 340px;
+  overflow-y: auto;
+  z-index: 100;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+}
+
+.autocomplete-list::-webkit-scrollbar { width: 6px; }
+.autocomplete-list::-webkit-scrollbar-track { background: var(--surface2); border-radius: 3px; }
+.autocomplete-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.autocomplete-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: background 0.1s;
+  border-bottom: 1px solid var(--border);
+}
+
+.autocomplete-item:last-child { border-bottom: none; }
+
+.autocomplete-item:hover,
+.autocomplete-item.active {
+  background: var(--surface2);
+}
+
+.autocomplete-item img {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.autocomplete-item .ac-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.autocomplete-item .ac-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.autocomplete-item .ac-dev {
+  font-size: 0.75rem;
+  color: var(--text2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.autocomplete-item .ac-rating {
+  font-size: 0.75rem;
+  color: var(--text2);
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.autocomplete-item .ac-rating .val {
+  color: var(--green);
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .app-header { flex-direction: column; align-items: center; text-align: center; }
+  .app-meta .badges { justify-content: center; }
+  .app-links { justify-content: center; }
+  .detail-grid { grid-template-columns: 1fr; }
+  .search-box { flex-direction: column; }
+  header h1 { font-size: 1.8rem; }
+  .dev-apps-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+
+<div class="container">
+  <header>
+    <h1>App Store Lookup</h1>
+    <p>Paste any App Store URL to fetch app details via iTunes API</p>
+  </header>
+
+  <div class="search-box">
+    <select id="countrySelect" class="country-select">
+      <option value="us">🇺🇸 US</option>
+      <option value="au">🇦🇺 AU</option>
+      <option value="br">🇧🇷 BR</option>
+      <option value="ca">🇨🇦 CA</option>
+      <option value="cn">🇨🇳 CN</option>
+      <option value="hr">🇭🇷 HR</option>
+      <option value="cz">🇨🇿 CZ</option>
+      <option value="dk">🇩🇰 DK</option>
+      <option value="eg">🇪🇬 EG</option>
+      <option value="fi">🇫🇮 FI</option>
+      <option value="fr">🇫🇷 FR</option>
+      <option value="de">🇩🇪 DE</option>
+      <option value="gr">🇬🇷 GR</option>
+      <option value="hk">🇭🇰 HK</option>
+      <option value="hu">🇭🇺 HU</option>
+      <option value="in">🇮🇳 IN</option>
+      <option value="id">🇮🇩 ID</option>
+      <option value="il">🇮🇱 IL</option>
+      <option value="it">🇮🇹 IT</option>
+      <option value="jp">🇯🇵 JP</option>
+      <option value="kr">🇰🇷 KR</option>
+      <option value="my">🇲🇾 MY</option>
+      <option value="mx">🇲🇽 MX</option>
+      <option value="nl">🇳🇱 NL</option>
+      <option value="nz">🇳🇿 NZ</option>
+      <option value="no">🇳🇴 NO</option>
+      <option value="pl">🇵🇱 PL</option>
+      <option value="pt">🇵🇹 PT</option>
+      <option value="ro">🇷🇴 RO</option>
+      <option value="ru">🇷🇺 RU</option>
+      <option value="sa">🇸🇦 SA</option>
+      <option value="sg">🇸🇬 SG</option>
+      <option value="sk">🇸🇰 SK</option>
+      <option value="es">🇪🇸 ES</option>
+      <option value="se">🇸🇪 SE</option>
+      <option value="ch">🇨🇭 CH</option>
+      <option value="tw">🇹🇼 TW</option>
+      <option value="th">🇹🇭 TH</option>
+      <option value="tr">🇹🇷 TR</option>
+      <option value="ua">🇺🇦 UA</option>
+      <option value="gb">🇬🇧 UK</option>
+      <option value="vn">🇻🇳 VN</option>
+    </select>
+    <div class="autocomplete-wrap">
+      <input type="text" id="urlInput" placeholder="Search by app name or paste an App Store URL" spellcheck="false" autocomplete="off">
+      <div class="autocomplete-list" id="acList"></div>
+    </div>
+    <button id="lookupBtn" onclick="doLookup()">Lookup</button>
+  </div>
+
+  <div class="error" id="error"></div>
+  <div class="loader" id="loader"><div class="spinner"></div><span style="color:var(--text2);font-size:0.9rem">Fetching app data…</span></div>
+
+  <div id="result"></div>
+
+  <div class="disclaimer">
+    For educational purposes only. This tool uses the official
+    <a href="https://developer.apple.com/library/archive/documentation/AudioVideo/Conceptual/iTuneSearchAPI/index.html" target="_blank" rel="noopener">iTunes Search API</a>.<br>
+    All data is fetched directly from Apple. Usage is subject to
+    <a href="https://www.apple.com/legal/internet-services/terms/site.html" target="_blank" rel="noopener">Apple Media Services Terms and Conditions</a>.
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+// ── URL Parsing ──────────────────────────────────────────────────
+
+function extractAppInfo(raw) {
+  let url = raw.trim();
+
+  // Decode repeatedly until stable (handles double/triple percent-encoding)
+  let prev = '', decoded = url;
+  while (decoded !== prev) {
+    prev = decoded;
+    try { decoded = decodeURIComponent(decoded); } catch (e) { break; }
+  }
+  url = decoded;
+
+  // Handle Google redirect URLs — pull out the real Apple URL from ?url=...
+  const gMatch = url.match(/[?&]url=(https?:\/\/apps\.apple\.com[^&]*)/i);
+  if (gMatch) {
+    let appleUrl = gMatch[1];
+    let p = '';
+    while (appleUrl !== p) {
+      p = appleUrl;
+      try { appleUrl = decodeURIComponent(appleUrl); } catch (e) { break; }
+    }
+    url = appleUrl;
+  }
+
+  // Strip query string and fragment for cleaner matching
+  const cleanUrl = url.split('?')[0].split('#')[0];
+
+  // Extract country code: apps.apple.com/<cc>/... or &country=<cc>
+  let country = null;
+  const cm = cleanUrl.match(/apps\.apple\.com\/([a-z]{2})\//i);
+  if (cm) country = cm[1].toLowerCase();
+  if (!country) {
+    const cq = url.match(/[?&]country=([a-z]{2})/i);
+    if (cq) country = cq[1].toLowerCase();
+  }
+
+  // Detect developer page
+  const isDeveloper = /\/developer\//i.test(cleanUrl);
+
+  // Match /id<digits> in the path
+  const idMatch = cleanUrl.match(/\/id(\d+)/);
+  if (idMatch) return { id: idMatch[1], country, isDeveloper };
+
+  // Query param fallback
+  const paramMatch = url.match(/[?&]id=(\d+)/);
+  if (paramMatch) return { id: paramMatch[1], country, isDeveloper: false };
+
+  // Raw input fallbacks (before any decoding)
+  const rawMatch = raw.match(/\/id(\d+)/);
+  if (rawMatch) return { id: rawMatch[1], country, isDeveloper: false };
+
+  const encodedMatch = raw.match(/%2Fid(\d+)/i);
+  if (encodedMatch) return { id: encodedMatch[1], country, isDeveloper: false };
+
+  // Maybe it's just a bare numeric ID
+  if (/^\d{6,}$/.test(raw.trim())) return { id: raw.trim(), country: null, isDeveloper: false };
+
+  return null;
+}
+
+// ── iTunes API (fetch with JSONP fallback) ──────────────────────
+
+function fetchItunes(appId, country, entity) {
+  let apiUrl = 'https://itunes.apple.com/lookup?id=' + appId;
+  if (country) apiUrl += '&country=' + country;
+  if (entity) apiUrl += '&entity=' + entity;
+
+  // Try fetch first (works when CORS is available)
+  return fetch(apiUrl)
+    .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .catch(function () {
+      // Fallback: JSONP (works from file:// and when CORS is blocked)
+      return new Promise(function (resolve, reject) {
+        var cbName = '_itcb_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+        var script = document.createElement('script');
+        var timer = setTimeout(function () { cleanup(); reject(new Error('Request timed out. Check your internet connection.')); }, 15000);
+
+        function cleanup() {
+          clearTimeout(timer);
+          delete window[cbName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+        }
+
+        window[cbName] = function (data) { cleanup(); resolve(data); };
+        script.onerror = function () { cleanup(); reject(new Error('Failed to fetch data from iTunes API.')); };
+        script.src = apiUrl + '&callback=' + cbName;
+        document.head.appendChild(script);
+      });
+    });
+}
+
+// ── Helpers ──────────────────────────────────────────────────────
+
+function showError(msg) { var el = $('error'); el.textContent = msg; el.style.display = 'block'; }
+function hideError() { $('error').style.display = 'none'; }
+
+function getArtworkUrl(base, size) {
+  if (!base) return '';
+  return base.replace(/\/\d+x\d+[a-z]*\./, '/' + size + 'x' + size + 'bb.');
+}
+
+function formatDate(str) {
+  if (!str) return '\u2014';
+  return new Date(str).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function formatFileSize(bytes) {
+  if (!bytes) return '\u2014';
+  return (parseInt(bytes) / 1048576).toFixed(1) + ' MB';
+}
+
+function formatPrice(price, currency) {
+  if (price == null || price === 0 || price === '0') return 'Free';
+  return (currency || '$') + price;
+}
+
+function escapeHtml(str) {
+  var div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ── Download image as file ──────────────────────────────────────
+
+function downloadImage(url, filename) {
+  fetch(url)
+    .then(function (r) { return r.blob(); })
+    .then(function (blob) {
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename || url.split('/').pop() || 'image.jpg';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+    })
+    .catch(function () { window.open(url, '_blank'); });
+}
+
+// ── Global state for zip downloads ──────────────────────────────
+
+var _currentApp = null;
+
+// ── Download multiple images as ZIP ─────────────────────────────
+
+async function downloadZip(urls, filenames, zipName, btn) {
+  if (!window.JSZip) { showError('JSZip library failed to load. Please refresh the page.'); return; }
+
+  var originalText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = originalText.split('<')[0] + ' <span class="zip-progress">0/' + urls.length + '</span>';
+
+  try {
+    var zip = new JSZip();
+    var done = 0;
+
+    // Fetch all images with concurrency limit
+    for (var i = 0; i < urls.length; i++) {
+      try {
+        var resp = await fetch(urls[i]);
+        var blob = await resp.blob();
+        var ext = urls[i].match(/\.(png|jpg|jpeg|webp)/i);
+        var filename = filenames[i] + (ext ? '.' + ext[1].toLowerCase() : '.jpg');
+        zip.file(filename, blob);
+      } catch (e) {
+        // Skip failed downloads
+      }
+      done++;
+      btn.querySelector('.zip-progress').textContent = done + '/' + urls.length;
+    }
+
+    var content = await zip.generateAsync({ type: 'blob' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(content);
+    a.download = zipName + '.zip';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  } catch (e) {
+    showError('Failed to create ZIP: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+  }
+}
+
+function downloadAllIcons(btn) {
+  if (!_currentApp) return;
+  var base = _currentApp.artworkUrl512 || _currentApp.artworkUrl100 || _currentApp.artworkUrl60 || '';
+  if (!base) return;
+  var sizes = [60, 100, 256, 512, 1024];
+  var urls = sizes.map(function (s) { return getArtworkUrl(base, s); });
+  var names = sizes.map(function (s) { return 'icon_' + s + 'x' + s; });
+  var appName = (_currentApp.trackName || 'app').replace(/[^a-zA-Z0-9]/g, '_');
+  downloadZip(urls, names, appName + '_icons', btn);
+}
+
+function downloadAllScreenshots(btn, type) {
+  if (!_currentApp) return;
+  var urls, prefix, label;
+  if (type === 'iphone') {
+    urls = _currentApp.screenshotUrls || [];
+    prefix = 'screenshot';
+    label = 'screenshots';
+  } else if (type === 'ipad') {
+    urls = _currentApp.ipadScreenshotUrls || [];
+    prefix = 'ipad_screenshot';
+    label = 'ipad_screenshots';
+  } else if (type === 'appletv') {
+    urls = _currentApp.appletvScreenshotUrls || [];
+    prefix = 'appletv_screenshot';
+    label = 'appletv_screenshots';
+  }
+  if (!urls || urls.length === 0) return;
+  var names = urls.map(function (u, i) { return prefix + '_' + (i + 1); });
+  var appName = (_currentApp.trackName || 'app').replace(/[^a-zA-Z0-9]/g, '_');
+  downloadZip(urls, names, appName + '_' + label, btn);
+}
+
+// ── Main Lookup ─────────────────────────────────────────────────
+
+async function doLookup() {
+  hideError();
+  $('result').style.display = 'none';
+  $('result').innerHTML = '';
+
+  var raw = $('urlInput').value;
+  if (!raw.trim()) { showError('Please paste an App Store URL.'); return; }
+
+  var info = extractAppInfo(raw);
+  if (!info) {
+    showError('Could not extract an App ID from that URL. Expected format: https://apps.apple.com/app/id123456789');
+    return;
+  }
+
+  // Always use the country selector's value
+  var selectedCountry = $('countrySelect').value;
+  info.country = selectedCountry;
+
+  var btn = $('lookupBtn');
+  btn.disabled = true;
+  $('loader').style.display = 'block';
+
+  try {
+    // For developer pages, request entity=software to also get their apps
+    var entity = info.isDeveloper ? 'software' : null;
+    var data = await fetchItunes(info.id, info.country, entity);
+
+    // If no results with country code, retry without it
+    if ((!data.results || data.results.length === 0) && info.country) {
+      data = await fetchItunes(info.id, null, entity);
+    }
+
+    if (!data.results || data.results.length === 0) {
+      throw new Error('No results found for ID ' + info.id + '. The app may not be available or the ID may be incorrect.');
+    }
+
+    var first = data.results[0];
+
+    if (first.wrapperType === 'artist') {
+      // Developer / artist result — show artist info + their apps
+      var apps = data.results.slice(1).filter(function (r) { return r.wrapperType === 'software'; });
+      renderArtist(first, apps, info.id);
+    } else {
+      renderApp(first, info.id);
+    }
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    btn.disabled = false;
+    $('loader').style.display = 'none';
+  }
+}
+
+// ── Render: App ─────────────────────────────────────────────────
+
+function renderApp(app, appId) {
+  _currentApp = app;
+  var r = $('result');
+  var artworkBase = app.artworkUrl512 || app.artworkUrl100 || app.artworkUrl60 || '';
+
+  var sizes = [60, 100, 256, 512, 1024];
+  var artworkCards = artworkBase ? sizes.map(function (s) {
+    var url = getArtworkUrl(artworkBase, s);
+    return '<div class="artwork-card">' +
+      '<img src="' + getArtworkUrl(artworkBase, 100) + '" alt="' + s + 'px">' +
+      '<div class="size-label">' + s + '\u00d7' + s + '</div>' +
+      '<a href="' + url + '" target="_blank" rel="noopener">Direct Link</a> ' +
+      '<a href="javascript:void(0)" onclick="downloadImage(\'' + url.replace(/'/g, "\\'") + '\',\'icon_' + s + '.jpg\')">Download</a>' +
+      '</div>';
+  }).join('') : '<p style="color:var(--text2)">No artwork available</p>';
+
+  var screenshots = (app.screenshotUrls || []).map(function (url, i) {
+    return '<div class="screenshot-item">' +
+      '<img src="' + url + '" alt="Screenshot ' + (i + 1) + '" loading="lazy">' +
+      '<button class="dl-btn" onclick="downloadImage(\'' + url.replace(/'/g, "\\'") + '\',\'screenshot_' + (i + 1) + '.jpg\')">\u2193 Download</button>' +
+      '</div>';
+  }).join('');
+
+  var ipadScreenshots = (app.ipadScreenshotUrls || []).map(function (url, i) {
+    return '<div class="screenshot-item">' +
+      '<img src="' + url + '" alt="iPad Screenshot ' + (i + 1) + '" loading="lazy">' +
+      '<button class="dl-btn" onclick="downloadImage(\'' + url.replace(/'/g, "\\'") + '\',\'ipad_screenshot_' + (i + 1) + '.jpg\')">\u2193 Download</button>' +
+      '</div>';
+  }).join('');
+
+  var appletvScreenshots = (app.appletvScreenshotUrls || []).map(function (url, i) {
+    return '<div class="screenshot-item">' +
+      '<img src="' + url + '" alt="Apple TV Screenshot ' + (i + 1) + '" loading="lazy" style="height:200px">' +
+      '<button class="dl-btn" onclick="downloadImage(\'' + url.replace(/'/g, "\\'") + '\',\'appletv_screenshot_' + (i + 1) + '.jpg\')">\u2193 Download</button>' +
+      '</div>';
+  }).join('');
+
+  var genres = [app.primaryGenreName].concat(app.genres || []).filter(function (v, i, a) { return v && a.indexOf(v) === i; });
+  var rating = app.averageUserRating ? app.averageUserRating.toFixed(1) : '\u2014';
+  var ratingCount = app.userRatingCount ? app.userRatingCount.toLocaleString() : '\u2014';
+
+  var detailFields = [
+    { label: 'Bundle ID', value: app.bundleId || '\u2014' },
+    { label: 'Version', value: app.version || '\u2014' },
+    { label: 'Price', value: formatPrice(app.price, app.currency) },
+    { label: 'File Size', value: formatFileSize(app.fileSizeBytes) },
+    { label: 'Minimum OS', value: app.minimumOsVersion || '\u2014' },
+    { label: 'Release Date', value: formatDate(app.releaseDate) },
+    { label: 'Updated', value: formatDate(app.currentVersionReleaseDate) },
+    { label: 'Content Rating', value: app.contentAdvisoryRating || app.trackContentRating || '\u2014' },
+    { label: 'Genres', value: genres.join(', ') || '\u2014' },
+    { label: 'Genre IDs', value: (app.genreIds || []).join(', ') || '\u2014' },
+    { label: 'Languages', value: (app.languageCodesISO2A || []).join(', ') || '\u2014' },
+    { label: 'Seller', value: app.sellerName || '\u2014' },
+    { label: 'Artist ID', value: app.artistId || '\u2014' },
+    { label: 'Track ID', value: app.trackId || '\u2014' },
+    { label: 'Current Version Rating', value: app.averageUserRatingForCurrentVersion ? app.averageUserRatingForCurrentVersion.toFixed(1) + ' \u2605' : '\u2014' },
+    { label: 'Current Version Ratings', value: app.userRatingCountForCurrentVersion ? app.userRatingCountForCurrentVersion.toLocaleString() : '\u2014' },
+  ];
+
+  // Add supported devices (truncated)
+  var devices = app.supportedDevices || [];
+  if (devices.length > 0) {
+    detailFields.push({
+      label: 'Supported Devices',
+      value: devices.slice(0, 15).join(', ') + (devices.length > 15 ? ' \u2026 (' + devices.length + ' total)' : '')
+    });
+  }
+
+  var detailItems = detailFields.map(function (f) {
+    return '<div class="detail-item"><div class="label">' + f.label + '</div><div class="value">' + f.value + '</div></div>';
+  }).join('');
+
+  var links = [];
+  if (app.trackViewUrl) links.push('<a href="' + app.trackViewUrl + '" target="_blank" rel="noopener">App Store</a>');
+  if (app.artistViewUrl) links.push('<a href="' + app.artistViewUrl + '" target="_blank" rel="noopener">Developer Page</a>');
+  if (app.sellerUrl) links.push('<a href="' + app.sellerUrl + '" target="_blank" rel="noopener">Website</a>');
+
+  var html = '';
+
+  // App Header
+  html += '<div class="app-header">';
+  if (artworkBase) {
+    html += '<div class="app-icon">' +
+      '<img src="' + getArtworkUrl(artworkBase, 256) + '" alt="' + escapeHtml(app.trackName || '') + '">' +
+      '<a class="download-overlay" href="javascript:void(0)" onclick="downloadImage(\'' + getArtworkUrl(artworkBase, 1024).replace(/'/g, "\\'") + '\',\'icon_1024.jpg\')">' +
+      '<span>\u2193 1024px</span></a></div>';
+  }
+  html += '<div class="app-meta">' +
+    '<h2>' + escapeHtml(app.trackName || app.trackCensoredName || '\u2014') + '</h2>' +
+    '<div class="developer">' + escapeHtml(app.artistName || '\u2014') + '</div>' +
+    '<div class="badges">' +
+    '<div class="badge green"><span class="val">' + rating + ' \u2605</span> (' + ratingCount + ')</div>' +
+    '<div class="badge orange">v<span class="val">' + (app.version || '?') + '</span></div>' +
+    '<div class="badge pink"><span class="val">' + formatPrice(app.price, app.currency) + '</span></div>' +
+    (app.currentVersionReleaseDate ? '<div class="badge">Updated <span class="val">' + formatDate(app.currentVersionReleaseDate) + '</span></div>' : '') +
+    '</div>' +
+    '<div class="app-links">' + links.join('') + '</div>' +
+    '</div></div>';
+
+  // Artworks
+  html += '<div class="section"><div class="section-head"><h3>App Icon \u2014 All Sizes</h3>' +
+    (artworkBase ? '<button class="zip-btn" onclick="downloadAllIcons(this)">\u2193 Download All Icons (ZIP)</button>' : '') +
+    '</div><div class="artwork-grid">' + artworkCards + '</div></div>';
+
+  // Description
+  if (app.description) {
+    html += '<div class="section"><h3>Description</h3>' +
+      '<div class="description" id="descText">' + escapeHtml(app.description) + '</div>' +
+      '<div class="description-fade" id="descFade"></div>' +
+      '<button class="toggle-desc" onclick="toggleBlock(\'descText\', this)">Show more</button></div>';
+  }
+
+  // Release Notes
+  if (app.releaseNotes) {
+    html += '<div class="section"><h3>What\'s New (v' + escapeHtml(app.version || '') + ')</h3>' +
+      '<div class="description" id="notesText">' + escapeHtml(app.releaseNotes) + '</div>' +
+      '<div class="description-fade" id="notesFade"></div>' +
+      '<button class="toggle-desc" onclick="toggleBlock(\'notesText\', this)">Show more</button></div>';
+  }
+
+  // Details
+  html += '<div class="section"><h3>App Details</h3><div class="detail-grid">' + detailItems + '</div></div>';
+
+  // Screenshots
+  if (screenshots) {
+    html += '<div class="section"><div class="section-head"><h3>iPhone Screenshots (' + app.screenshotUrls.length + ')</h3>' +
+      '<button class="zip-btn" onclick="downloadAllScreenshots(this,\'iphone\')">\u2193 Download All (ZIP)</button></div>' +
+      '<div class="screenshots-scroll">' + screenshots + '</div></div>';
+  }
+  if (ipadScreenshots) {
+    html += '<div class="section"><div class="section-head"><h3>iPad Screenshots (' + app.ipadScreenshotUrls.length + ')</h3>' +
+      '<button class="zip-btn" onclick="downloadAllScreenshots(this,\'ipad\')">\u2193 Download All (ZIP)</button></div>' +
+      '<div class="screenshots-scroll">' + ipadScreenshots + '</div></div>';
+  }
+  if (appletvScreenshots) {
+    html += '<div class="section"><div class="section-head"><h3>Apple TV Screenshots (' + app.appletvScreenshotUrls.length + ')</h3>' +
+      '<button class="zip-btn" onclick="downloadAllScreenshots(this,\'appletv\')">\u2193 Download All (ZIP)</button></div>' +
+      '<div class="screenshots-scroll">' + appletvScreenshots + '</div></div>';
+  }
+
+  // API URL
+  html += '<div class="section"><h3>iTunes Lookup URL</h3>' +
+    '<div style="font-family:\'JetBrains Mono\',monospace;font-size:0.82rem;color:var(--accent2);word-break:break-all;">' +
+    '<a href="https://itunes.apple.com/lookup?id=' + appId + '" target="_blank" rel="noopener" style="color:var(--accent2);text-decoration:none;">' +
+    'https://itunes.apple.com/lookup?id=' + appId + '</a></div></div>';
+
+  // Raw JSON
+  html += '<div class="section"><h3>Raw API Response</h3>' +
+    '<div class="raw-json">' + escapeHtml(JSON.stringify(app, null, 2)) + '</div></div>';
+
+  r.innerHTML = html;
+  r.style.display = 'block';
+  r.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── Render: Artist / Developer ──────────────────────────────────
+
+function renderArtist(artist, apps, artistId) {
+  var r = $('result');
+  var html = '';
+
+  // Artist Header
+  html += '<div class="app-header"><div class="app-meta">' +
+    '<h2>' + escapeHtml(artist.artistName || 'Unknown Developer') + '</h2>' +
+    '<div class="developer">' + escapeHtml(artist.artistType || 'Developer') + '</div>' +
+    '<div class="badges">' +
+    '<div class="badge">ID <span class="val">' + artistId + '</span></div>' +
+    (artist.primaryGenreName ? '<div class="badge green"><span class="val">' + escapeHtml(artist.primaryGenreName) + '</span></div>' : '') +
+    (apps.length > 0 ? '<div class="badge orange"><span class="val">' + apps.length + '</span> apps</div>' : '') +
+    '</div>' +
+    '<div class="app-links">' +
+    (artist.artistLinkUrl ? '<a href="' + artist.artistLinkUrl + '" target="_blank" rel="noopener">App Store</a>' : '') +
+    '</div></div></div>';
+
+  // Apps by this developer
+  if (apps.length > 0) {
+    var appCards = apps.map(function (a) {
+      var icon = a.artworkUrl100 || a.artworkUrl60 || '';
+      var appRating = a.averageUserRating ? a.averageUserRating.toFixed(1) : '\u2014';
+      return '<div class="dev-app-card" onclick="lookupById(\'' + a.trackId + '\')">' +
+        (icon ? '<img src="' + icon + '" alt="' + escapeHtml(a.trackName || '') + '">' : '') +
+        '<div class="info">' +
+        '<div class="name">' + escapeHtml(a.trackName || '\u2014') + '</div>' +
+        '<div class="genre">' + escapeHtml(a.primaryGenreName || '') + '</div>' +
+        '<div class="meta">' + appRating + ' \u2605 \u00b7 ' + formatPrice(a.price, a.currency) +
+        ' \u00b7 v' + (a.version || '?') + '</div>' +
+        '</div></div>';
+    }).join('');
+
+    html += '<div class="section"><h3>Apps by ' + escapeHtml(artist.artistName || 'Developer') +
+      ' (' + apps.length + ')</h3><div class="dev-apps-grid">' + appCards + '</div></div>';
+  }
+
+  // API URL
+  html += '<div class="section"><h3>iTunes Lookup URL</h3>' +
+    '<div style="font-family:\'JetBrains Mono\',monospace;font-size:0.82rem;color:var(--accent2);word-break:break-all;">' +
+    '<a href="https://itunes.apple.com/lookup?id=' + artistId + '&entity=software" target="_blank" rel="noopener" style="color:var(--accent2);text-decoration:none;">' +
+    'https://itunes.apple.com/lookup?id=' + artistId + '&entity=software</a></div></div>';
+
+  // Raw JSON
+  html += '<div class="section"><h3>Raw API Response</h3>' +
+    '<div class="raw-json">' + escapeHtml(JSON.stringify(artist, null, 2)) + '</div></div>';
+
+  r.innerHTML = html;
+  r.style.display = 'block';
+  r.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── Quick lookup by ID (used from developer app cards) ──────────
+
+function lookupById(trackId) {
+  $('urlInput').value = 'https://apps.apple.com/app/id' + trackId;
+  doLookup();
+}
+
+// ── Toggle description / notes blocks ───────────────────────────
+
+function toggleBlock(elementId, btn) {
+  var el = $(elementId);
+  el.classList.toggle('expanded');
+  btn.textContent = el.classList.contains('expanded') ? 'Show less' : 'Show more';
+}
+
+// ── Keyboard & paste events ─────────────────────────────────────
+
+// ── Autocomplete Search ─────────────────────────────────────────
+
+var _acTimer = null;
+var _acResults = [];
+var _acIndex = -1;
+
+function searchItunes(term) {
+  var country = $('countrySelect').value;
+  var apiUrl = 'https://itunes.apple.com/search?term=' + encodeURIComponent(term) + '&media=software&entity=software&limit=30&country=' + country;
+  return fetch(apiUrl)
+    .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .catch(function () {
+      return new Promise(function (resolve, reject) {
+        var cbName = '_itcb_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+        var script = document.createElement('script');
+        var timer = setTimeout(function () { cleanup(); reject(new Error('Search timed out.')); }, 15000);
+        function cleanup() {
+          clearTimeout(timer);
+          delete window[cbName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+        }
+        window[cbName] = function (data) { cleanup(); resolve(data); };
+        script.onerror = function () { cleanup(); reject(new Error('Search request failed.')); };
+        script.src = apiUrl + '&callback=' + cbName;
+        document.head.appendChild(script);
+      });
+    });
+}
+
+function isUrl(str) {
+  var s = str.trim().toLowerCase();
+  return s.startsWith('http') || s.includes('apps.apple.com');
+}
+
+function renderAcList(results) {
+  var list = $('acList');
+  _acResults = results;
+  _acIndex = -1;
+  if (results.length === 0) {
+    list.style.display = 'none';
+    return;
+  }
+  list.innerHTML = results.map(function (app, i) {
+    var icon = app.artworkUrl60 || app.artworkUrl100 || '';
+    var name = escapeHtml(app.trackName || app.trackCensoredName || '');
+    var dev = escapeHtml(app.artistName || '');
+    var rating = app.averageUserRating ? app.averageUserRating.toFixed(1) : null;
+    var price = formatPrice(app.price, app.currency);
+    return '<div class="autocomplete-item" data-index="' + i + '">' +
+      (icon ? '<img src="' + icon + '" alt="">' : '') +
+      '<div class="ac-info"><div class="ac-name">' + name + '</div><div class="ac-dev">' + dev + '</div></div>' +
+      '<div class="ac-rating">' + (rating ? '<span class="val">' + rating + ' \u2605</span><br>' : '') + price + '</div>' +
+      '</div>';
+  }).join('');
+  list.style.display = 'block';
+}
+
+function syncCountryFromUrl(raw) {
+  var info = extractAppInfo(raw);
+  if (info && info.country) {
+    var opt = $('countrySelect').querySelector('option[value="' + info.country + '"]');
+    if (opt) $('countrySelect').value = info.country;
+  }
+}
+
+function closeAcList() {
+  $('acList').style.display = 'none';
+  _acResults = [];
+  _acIndex = -1;
+}
+
+function selectAcItem(index) {
+  var app = _acResults[index];
+  if (!app) return;
+  $('urlInput').value = app.trackViewUrl;
+  closeAcList();
+  doLookup();
+}
+
+function updateAcHighlight() {
+  var items = $('acList').querySelectorAll('.autocomplete-item');
+  items.forEach(function (el, i) {
+    el.classList.toggle('active', i === _acIndex);
+    if (i === _acIndex) el.scrollIntoView({ block: 'nearest' });
+  });
+}
+
+$('acList').addEventListener('click', function (e) {
+  var item = e.target.closest('.autocomplete-item');
+  if (item) selectAcItem(parseInt(item.dataset.index));
+});
+
+$('urlInput').addEventListener('input', function () {
+  clearTimeout(_acTimer);
+  var val = this.value.trim();
+  if (val.length < 2 || isUrl(val)) {
+    closeAcList();
+    return;
+  }
+  _acTimer = setTimeout(function () {
+    searchItunes(val).then(function (data) {
+      if ($('urlInput').value.trim().length < 2 || isUrl($('urlInput').value)) return;
+      renderAcList(data.results || []);
+    }).catch(function () {});
+  }, 300);
+});
+
+$('urlInput').addEventListener('keydown', function (e) {
+  if ($('acList').style.display === 'block') {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      _acIndex = Math.min(_acIndex + 1, _acResults.length - 1);
+      updateAcHighlight();
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      _acIndex = Math.max(_acIndex - 1, 0);
+      updateAcHighlight();
+      return;
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (_acIndex >= 0) { selectAcItem(_acIndex); } else if (_acResults.length > 0) { selectAcItem(0); }
+      return;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeAcList();
+      return;
+    }
+  }
+  if (e.key === 'Enter') doLookup();
+});
+
+$('urlInput').addEventListener('paste', function () {
+  setTimeout(function () {
+    if (isUrl($('urlInput').value)) {
+      closeAcList();
+      syncCountryFromUrl($('urlInput').value);
+      doLookup();
+    }
+  }, 100);
+});
+
+document.addEventListener('click', function (e) {
+  if (!e.target.closest('.autocomplete-wrap')) closeAcList();
+});
+
+// ── Country selector: rewrite URL in input when changed ─────────
+
+$('countrySelect').addEventListener('change', function () {
+  var raw = $('urlInput').value.trim();
+  if (!raw || !isUrl(raw)) return;
+
+  var newCC = this.value;
+
+  // Replace country in apps.apple.com/<cc>/ path
+  var updated = raw.replace(
+    /(apps\.apple\.com\/)([a-z]{2})(\/)/i,
+    '$1' + newCC + '$3'
+  );
+
+  // If URL had no country path (e.g. apps.apple.com/app/...), insert one
+  if (updated === raw && /apps\.apple\.com\/app\//i.test(raw)) {
+    updated = raw.replace(
+      /(apps\.apple\.com\/)(app\/)/i,
+      '$1' + newCC + '/$2'
+    );
+  }
+
+  // For itunes.apple.com URLs, update or add country param
+  if (/itunes\.apple\.com/i.test(raw)) {
+    if (/[?&]country=/i.test(updated)) {
+      updated = updated.replace(/([?&]country=)[a-z]{2}/i, '$1' + newCC);
+    } else {
+      updated += (updated.includes('?') ? '&' : '?') + 'country=' + newCC;
+    }
+  }
+
+  $('urlInput').value = updated;
+});
+</script>
+</body>
+</html>
