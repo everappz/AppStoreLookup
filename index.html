@@ -67,13 +67,21 @@ header p {
   display: flex;
   gap: 12px;
   margin-bottom: 40px;
+  align-items: center;
+}
+
+.search-box input,
+.search-box button,
+.country-select {
+  box-sizing: border-box;
+  height: 50px;
 }
 
 .search-box input {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 14px 20px;
+  padding: 0 20px;
   color: var(--text);
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.85rem;
@@ -95,7 +103,7 @@ header p {
   color: #fff;
   border: none;
   border-radius: var(--radius);
-  padding: 14px 28px;
+  padding: 0 28px;
   font-family: 'DM Sans', sans-serif;
   font-weight: 600;
   font-size: 0.9rem;
@@ -332,74 +340,50 @@ header p {
 .screenshots-scroll::-webkit-scrollbar-track { background: var(--surface2); border-radius: 3px; }
 .screenshots-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
-.screenshot-item {
+.screenshot-card {
   flex-shrink: 0;
   scroll-snap-align: start;
-  position: relative;
-  border-radius: 12px;
-  overflow: hidden;
+  background: var(--surface2);
   border: 1px solid var(--border);
-  transition: transform 0.2s;
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  transition: border-color 0.15s;
 }
 
-.screenshot-item:hover { transform: scale(1.02); }
+.screenshot-card:hover { border-color: var(--accent); }
 
-.screenshot-item img {
+.screenshot-card .screenshot-img-link {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.screenshot-card .screenshot-img-link:hover { background: none; }
+
+.screenshot-card img {
   height: 280px;
   width: auto;
   display: block;
-}
-
-.screenshot-item .dl-btn {
-  position: absolute;
-  bottom: 8px; right: 8px;
-  background: rgba(0,0,0,0.7);
-  backdrop-filter: blur(8px);
-  color: #fff;
-  border: none;
   border-radius: 8px;
-  padding: 6px 12px;
-  font-size: 0.72rem;
-  font-family: 'DM Sans', sans-serif;
-  font-weight: 600;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.2s;
-  text-decoration: none;
-  display: inline-block;
-}
-
-.screenshot-item:hover .dl-btn { opacity: 1; }
-
-/* Artwork sizes */
-.artwork-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 16px;
-}
-
-.artwork-card {
-  background: var(--surface2);
-  border-radius: 12px;
-  padding: 16px;
-  text-align: center;
-}
-
-.artwork-card img {
-  width: 80px; height: 80px;
-  border-radius: 18px;
-  margin-bottom: 10px;
   box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  cursor: pointer;
 }
 
-.artwork-card .size-label {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--text);
-  margin-bottom: 6px;
+.screenshot-card.landscape img { height: 200px; }
+
+.screenshot-card .actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
-.artwork-card a {
+.screenshot-card .actions a {
   display: inline-block;
   font-size: 0.72rem;
   color: var(--accent2);
@@ -407,10 +391,98 @@ header p {
   padding: 4px 10px;
   border: 1px solid var(--border);
   border-radius: 6px;
-  transition: background 0.15s;
+  background: var(--surface);
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
 }
 
-.artwork-card a:hover { background: var(--surface); }
+.screenshot-card .actions a:hover {
+  background: var(--bg);
+  border-color: var(--accent);
+}
+
+/* Artwork sizes */
+.artwork-scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+  scroll-snap-type: x mandatory;
+}
+
+.artwork-scroll::-webkit-scrollbar { height: 6px; }
+.artwork-scroll::-webkit-scrollbar-track { background: var(--surface2); border-radius: 3px; }
+.artwork-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.artwork-card {
+  flex-shrink: 0;
+  scroll-snap-align: start;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  transition: border-color 0.15s;
+  min-width: 140px;
+}
+
+.artwork-card:hover { border-color: var(--accent); }
+
+.artwork-card .artwork-img-link {
+  display: inline-block;
+  padding: 0;
+  border: 0;
+  background: none;
+  transition: transform 0.15s;
+}
+
+.artwork-card .artwork-img-link:hover {
+  background: none;
+  transform: scale(1.05);
+}
+
+.artwork-card img {
+  width: 80px; height: 80px;
+  border-radius: 18px;
+  display: block;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  cursor: pointer;
+}
+
+.artwork-card .size-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.artwork-card .actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.artwork-card .actions a {
+  display: inline-block;
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--accent2);
+  text-decoration: none;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.artwork-card .actions a:hover {
+  background: var(--bg);
+  border-color: var(--accent);
+}
 
 /* Developer apps grid */
 .dev-apps-grid {
@@ -636,7 +708,7 @@ header p {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 14px 12px;
+  padding: 0 30px 0 12px;
   color: var(--text);
   font-family: 'DM Sans', sans-serif;
   font-size: 0.85rem;
@@ -648,7 +720,6 @@ header p {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238e8e9a' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
-  padding-right: 30px;
 }
 
 .country-select:focus { border-color: var(--accent); }
@@ -1084,37 +1155,41 @@ async function downloadZip(urls, filenames, zipName, btn) {
   }
 }
 
+function collectApiIcons(app) {
+  var icons = [];
+  ['artworkUrl60', 'artworkUrl100', 'artworkUrl512'].forEach(function (field) {
+    var url = app[field];
+    if (!url) return;
+    var m = url.match(/\/(\d+)x(\d+)[a-z]*\./);
+    var size = m ? parseInt(m[1]) : null;
+    icons.push({ field: field, url: url, size: size });
+  });
+  return icons;
+}
+
 function downloadAllIcons(btn) {
   if (!_currentApp) return;
-  var base = _currentApp.artworkUrl512 || _currentApp.artworkUrl100 || _currentApp.artworkUrl60 || '';
-  if (!base) return;
-  var sizes = [60, 100, 256, 512, 1024];
-  var urls = sizes.map(function (s) { return getArtworkUrl(base, s); });
-  var names = sizes.map(function (s) { return 'icon_' + s + 'x' + s; });
+  var icons = collectApiIcons(_currentApp);
+  if (!icons.length) return;
+  var urls = icons.map(function (i) { return i.url; });
+  var names = icons.map(function (i) { return 'icon_' + (i.size || i.field); });
   var appName = (_currentApp.trackName || 'app').replace(/[^a-zA-Z0-9]/g, '_');
   downloadZip(urls, names, appName + '_icons', btn);
 }
 
 function downloadAllScreenshots(btn, type) {
   if (!_currentApp) return;
-  var urls, prefix, label;
-  if (type === 'iphone') {
-    urls = _currentApp.screenshotUrls || [];
-    prefix = 'screenshot';
-    label = 'screenshots';
-  } else if (type === 'ipad') {
-    urls = _currentApp.ipadScreenshotUrls || [];
-    prefix = 'ipad_screenshot';
-    label = 'ipad_screenshots';
-  } else if (type === 'appletv') {
-    urls = _currentApp.appletvScreenshotUrls || [];
-    prefix = 'appletv_screenshot';
-    label = 'appletv_screenshots';
-  }
-  if (!urls || urls.length === 0) return;
-  var names = urls.map(function (u, i) { return prefix + '_' + (i + 1); });
+  var groups = {
+    iphone:  { urls: _currentApp.screenshotUrls || [],        prefix: 'screenshot',          label: 'screenshots' },
+    ipad:    { urls: _currentApp.ipadScreenshotUrls || [],    prefix: 'ipad_screenshot',     label: 'ipad_screenshots' },
+    appletv: { urls: _currentApp.appletvScreenshotUrls || [], prefix: 'appletv_screenshot',  label: 'appletv_screenshots' },
+    mac:     { urls: _currentApp.macScreenshotUrls || [],     prefix: 'mac_screenshot',      label: 'mac_screenshots' }
+  };
+  var g = groups[type];
+  if (!g || !g.urls.length) return;
+  var names = g.urls.map(function (u, i) { return g.prefix + '_' + (i + 1); });
   var appName = (_currentApp.trackName || 'app').replace(/[^a-zA-Z0-9]/g, '_');
-  downloadZip(urls, names, appName + '_' + label, btn);
+  downloadZip(g.urls, names, appName + '_' + g.label, btn);
 }
 
 // ── Main Lookup ─────────────────────────────────────────────────
@@ -1181,37 +1256,39 @@ function renderApp(app, appId) {
   var r = $('result');
   var artworkBase = app.artworkUrl512 || app.artworkUrl100 || app.artworkUrl60 || '';
 
-  var sizes = [60, 100, 256, 512, 1024];
-  var artworkCards = artworkBase ? sizes.map(function (s) {
-    var url = getArtworkUrl(artworkBase, s);
+  var apiIcons = collectApiIcons(app);
+  var artworkCards = apiIcons.length ? apiIcons.map(function (icon) {
+    var sizeLabel = icon.size ? (icon.size + '\u00d7' + icon.size) : icon.field;
+    var filename = 'icon_' + (icon.size || icon.field) + '.jpg';
     return '<div class="artwork-card">' +
-      '<img src="' + getArtworkUrl(artworkBase, 100) + '" alt="' + s + 'px">' +
-      '<div class="size-label">' + s + '\u00d7' + s + '</div>' +
-      '<a href="' + url + '" target="_blank" rel="noopener">Direct Link</a> ' +
-      '<a href="javascript:void(0)" onclick="downloadImage(\'' + url.replace(/'/g, "\\'") + '\',\'icon_' + s + '.jpg\')">Download</a>' +
-      '</div>';
+      '<a href="' + icon.url + '" target="_blank" rel="noopener" class="artwork-img-link">' +
+      '<img src="' + icon.url + '" alt="' + sizeLabel + '"></a>' +
+      '<div class="size-label">' + sizeLabel + '</div>' +
+      '<div class="actions">' +
+      '<a href="' + icon.url + '" target="_blank" rel="noopener">Direct Link</a>' +
+      '<a href="javascript:void(0)" onclick="downloadImage(\'' + icon.url.replace(/'/g, "\\'") + '\',\'' + filename + '\')">Download</a>' +
+      '</div></div>';
   }).join('') : '<p style="color:var(--text2)">No artwork available</p>';
 
-  var screenshots = (app.screenshotUrls || []).map(function (url, i) {
-    return '<div class="screenshot-item">' +
-      '<img src="' + url + '" alt="Screenshot ' + (i + 1) + '" loading="lazy">' +
-      '<button class="dl-btn" onclick="downloadImage(\'' + url.replace(/'/g, "\\'") + '\',\'screenshot_' + (i + 1) + '.jpg\')">\u2193 Download</button>' +
-      '</div>';
-  }).join('');
+  function buildScreenshotCards(urls, filePrefix, altPrefix, landscape) {
+    return urls.map(function (url, i) {
+      var filename = filePrefix + '_' + (i + 1) + '.jpg';
+      return '<div class="screenshot-card' + (landscape ? ' landscape' : '') + '">' +
+        '<a href="' + url + '" target="_blank" rel="noopener" class="screenshot-img-link">' +
+        '<img src="' + url + '" alt="' + altPrefix + ' ' + (i + 1) + '" loading="lazy"></a>' +
+        '<div class="actions">' +
+        '<a href="' + url + '" target="_blank" rel="noopener">Direct Link</a>' +
+        '<a href="javascript:void(0)" onclick="downloadImage(\'' + url.replace(/'/g, "\\'") + '\',\'' + filename + '\')">Download</a>' +
+        '</div></div>';
+    }).join('');
+  }
 
-  var ipadScreenshots = (app.ipadScreenshotUrls || []).map(function (url, i) {
-    return '<div class="screenshot-item">' +
-      '<img src="' + url + '" alt="iPad Screenshot ' + (i + 1) + '" loading="lazy">' +
-      '<button class="dl-btn" onclick="downloadImage(\'' + url.replace(/'/g, "\\'") + '\',\'ipad_screenshot_' + (i + 1) + '.jpg\')">\u2193 Download</button>' +
-      '</div>';
-  }).join('');
-
-  var appletvScreenshots = (app.appletvScreenshotUrls || []).map(function (url, i) {
-    return '<div class="screenshot-item">' +
-      '<img src="' + url + '" alt="Apple TV Screenshot ' + (i + 1) + '" loading="lazy" style="height:200px">' +
-      '<button class="dl-btn" onclick="downloadImage(\'' + url.replace(/'/g, "\\'") + '\',\'appletv_screenshot_' + (i + 1) + '.jpg\')">\u2193 Download</button>' +
-      '</div>';
-  }).join('');
+  var screenshotPlatforms = [
+    { type: 'iphone',  label: 'iPhone',    urls: app.screenshotUrls || [],        prefix: 'iphone_screenshot',  alt: 'iPhone Screenshot',   landscape: false },
+    { type: 'ipad',    label: 'iPad',      urls: app.ipadScreenshotUrls || [],    prefix: 'ipad_screenshot',    alt: 'iPad Screenshot',     landscape: false },
+    { type: 'mac',     label: 'macOS',     urls: app.macScreenshotUrls || [],     prefix: 'mac_screenshot',     alt: 'macOS Screenshot',    landscape: true  },
+    { type: 'appletv', label: 'Apple TV',  urls: app.appletvScreenshotUrls || [], prefix: 'appletv_screenshot', alt: 'Apple TV Screenshot', landscape: true  }
+  ];
 
   var genres = [app.primaryGenreName].concat(app.genres || []).filter(function (v, i, a) { return v && a.indexOf(v) === i; });
   var rating = app.averageUserRating ? app.averageUserRating.toFixed(1) : '\u2014';
@@ -1260,10 +1337,12 @@ function renderApp(app, appId) {
   // App Header
   html += '<div class="app-header">';
   if (artworkBase) {
+    var iconDirect = getArtworkUrl(artworkBase, 1024);
     html += '<div class="app-icon">' +
-      '<img src="' + getArtworkUrl(artworkBase, 256) + '" alt="' + escapeHtml(app.trackName || '') + '">' +
-      '<a class="download-overlay" href="javascript:void(0)" onclick="downloadImage(\'' + getArtworkUrl(artworkBase, 1024).replace(/'/g, "\\'") + '\',\'icon_1024.jpg\')">' +
-      '<span>\u2193 1024px</span></a></div>';
+      '<a href="' + iconDirect + '" target="_blank" rel="noopener">' +
+      '<img src="' + getArtworkUrl(artworkBase, 256) + '" alt="' + escapeHtml(app.trackName || '') + '"></a>' +
+      '<a class="download-overlay" href="' + iconDirect + '" target="_blank" rel="noopener">' +
+      '<span>Open 1024px \u2192</span></a></div>';
   }
   var appTitle = app.trackName || app.trackCensoredName || '';
   var devName = app.artistName || '';
@@ -1282,9 +1361,18 @@ function renderApp(app, appId) {
     '</div></div>';
 
   // Artworks
-  html += '<div class="section"><div class="section-head"><h3>App Icon \u2014 All Sizes</h3>' +
-    (artworkBase ? '<button class="zip-btn" onclick="downloadAllIcons(this)">\u2193 Download All Icons (ZIP)</button>' : '') +
-    '</div><div class="artwork-grid">' + artworkCards + '</div></div>';
+  html += '<div class="section"><div class="section-head"><h3>App Icon</h3>' +
+    (apiIcons.length ? '<button class="zip-btn" onclick="downloadAllIcons(this)">\u2193 Download All Icons (ZIP)</button>' : '') +
+    '</div><div class="artwork-scroll">' + artworkCards + '</div></div>';
+
+  // Screenshots \u2014 one horizontally scrollable section per platform (right after icons)
+  screenshotPlatforms.forEach(function (p) {
+    if (!p.urls.length) return;
+    var cards = buildScreenshotCards(p.urls, p.prefix, p.alt, p.landscape);
+    html += '<div class="section"><div class="section-head"><h3>' + p.label + ' Screenshots</h3>' +
+      '<button class="zip-btn" onclick="downloadAllScreenshots(this,\'' + p.type + '\')">\u2193 Download All (ZIP)</button></div>' +
+      '<div class="screenshots-scroll">' + cards + '</div></div>';
+  });
 
   // Description
   if (app.description) {
@@ -1315,23 +1403,6 @@ function renderApp(app, appId) {
       copyBtnHtml(devicesText, { label: 'Copy', title: 'Copy supported devices' }) + '</div>' +
       '<div class="description">' + escapeHtml(devicesText) + '</div>' +
       '</div>';
-  }
-
-  // Screenshots
-  if (screenshots) {
-    html += '<div class="section"><div class="section-head"><h3>iPhone Screenshots (' + app.screenshotUrls.length + ')</h3>' +
-      '<button class="zip-btn" onclick="downloadAllScreenshots(this,\'iphone\')">\u2193 Download All (ZIP)</button></div>' +
-      '<div class="screenshots-scroll">' + screenshots + '</div></div>';
-  }
-  if (ipadScreenshots) {
-    html += '<div class="section"><div class="section-head"><h3>iPad Screenshots (' + app.ipadScreenshotUrls.length + ')</h3>' +
-      '<button class="zip-btn" onclick="downloadAllScreenshots(this,\'ipad\')">\u2193 Download All (ZIP)</button></div>' +
-      '<div class="screenshots-scroll">' + ipadScreenshots + '</div></div>';
-  }
-  if (appletvScreenshots) {
-    html += '<div class="section"><div class="section-head"><h3>Apple TV Screenshots (' + app.appletvScreenshotUrls.length + ')</h3>' +
-      '<button class="zip-btn" onclick="downloadAllScreenshots(this,\'appletv\')">\u2193 Download All (ZIP)</button></div>' +
-      '<div class="screenshots-scroll">' + appletvScreenshots + '</div></div>';
   }
 
   // API URL
