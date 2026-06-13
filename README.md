@@ -2,6 +2,8 @@
 
 A single-page web app that fetches and displays detailed information about any app on the Apple App Store using the iTunes Lookup API.
 
+![App Store Lookup screenshot](screenshot.png)
+
 ## Features
 
 - **Flexible URL input** — paste any App Store link, including Google redirect URLs with double-encoded characters
