@@ -306,35 +306,18 @@ header p {
   color: var(--text2);
   line-height: 1.7;
   white-space: pre-wrap;
-  max-height: 200px;
-  overflow: hidden;
-  position: relative;
-  transition: max-height 0.4s ease;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px;
+  max-height: 400px;
+  overflow-y: auto;
+  word-break: break-word;
 }
 
-.description.expanded { max-height: none; }
-
-.description-fade {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  height: 60px;
-  background: linear-gradient(transparent, var(--surface));
-  pointer-events: none;
-}
-
-.description.expanded + .description-fade { display: none; }
-
-.toggle-desc {
-  background: none;
-  border: none;
-  color: var(--accent2);
-  font-family: 'DM Sans', sans-serif;
-  font-size: 0.85rem;
-  cursor: pointer;
-  margin-top: 8px;
-  padding: 0;
-  font-weight: 500;
-}
+.description::-webkit-scrollbar { width: 6px; }
+.description::-webkit-scrollbar-track { background: var(--surface2); border-radius: 3px; }
+.description::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
 /* Screenshots */
 .screenshots-scroll {
@@ -482,6 +465,10 @@ header p {
   word-break: break-all;
 }
 
+.raw-json::-webkit-scrollbar { width: 6px; height: 6px; }
+.raw-json::-webkit-scrollbar-track { background: var(--surface2); border-radius: 3px; }
+.raw-json::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
 /* Zip download button */
 .zip-btn {
   display: inline-flex;
@@ -551,6 +538,98 @@ header p {
 .disclaimer a:hover {
   text-decoration: underline;
 }
+
+.footer-meta {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: var(--text2);
+}
+
+/* Copy button */
+.copy-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text2);
+  cursor: pointer;
+  padding: 4px 6px;
+  font-size: 0.72rem;
+  font-family: 'DM Sans', sans-serif;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  vertical-align: middle;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s;
+  flex-shrink: 0;
+}
+
+.copy-btn:hover {
+  background: var(--surface2);
+  border-color: var(--accent);
+  color: var(--accent2);
+}
+
+.copy-btn.copied {
+  color: var(--green);
+  border-color: var(--green);
+  background: rgba(52, 211, 153, 0.08);
+}
+
+.copy-btn svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.copy-btn .copy-label {
+  font-weight: 500;
+}
+
+.copy-inline {
+  margin-left: 8px;
+  vertical-align: middle;
+  position: relative;
+  top: -2px;
+}
+
+.detail-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-item .copy-btn {
+  align-self: flex-start;
+  margin-top: 10px;
+  padding: 4px 8px;
+}
+
+.app-meta h2 .copy-btn,
+.app-meta .developer .copy-btn {
+  font-size: 0.7rem;
+}
+
+.app-link-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.url-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.url-row > a { flex: 1; min-width: 0; }
 
 /* Country selector */
 .country-select {
@@ -743,6 +822,10 @@ header p {
     <a href="https://developer.apple.com/library/archive/documentation/AudioVideo/Conceptual/iTuneSearchAPI/index.html" target="_blank" rel="noopener">iTunes Search API</a>.<br>
     All data is fetched directly from Apple. Usage is subject to
     <a href="https://www.apple.com/legal/internet-services/terms/site.html" target="_blank" rel="noopener">Apple Media Services Terms and Conditions</a>.
+    <div class="footer-meta">
+      <a href="https://github.com/everappz/AppStoreLookup/edit/main/index.html" target="_blank" rel="noopener">Edit this page on GitHub →</a>
+      <a href="https://everappz.com/" target="_blank" rel="noopener">© 2025 EVERAPPZ SL</a>
+    </div>
   </div>
 </div>
 
@@ -870,6 +953,70 @@ function escapeHtml(str) {
   var div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+
+// ── Copy to clipboard ───────────────────────────────────────────
+
+var _copyRegistry = {};
+var _copyCounter = 0;
+
+var COPY_ICON_SVG = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><rect x="5" y="5" width="9" height="10" rx="1.5"/><path d="M3.5 11V3.5A1.5 1.5 0 015 2h6"/></svg>';
+var CHECK_ICON_SVG = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3 8.5L6.5 12L13 4.5"/></svg>';
+
+function copyBtnHtml(text, opts) {
+  opts = opts || {};
+  var key = '_cp_' + (++_copyCounter);
+  _copyRegistry[key] = text == null ? '' : String(text);
+  var cls = 'copy-btn' + (opts.inline ? ' copy-inline' : '') + (opts.extraClass ? ' ' + opts.extraClass : '');
+  var label = opts.label ? '<span class="copy-label">' + opts.label + '</span>' : '';
+  var title = opts.title || 'Copy to clipboard';
+  return '<button type="button" class="' + cls + '" onclick="copyFromRegistry(\'' + key + '\', this, event)" title="' + title + '" aria-label="' + title + '">' + COPY_ICON_SVG + label + '</button>';
+}
+
+function copyFromRegistry(key, btn, ev) {
+  if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+  var text = _copyRegistry[key];
+  if (text == null) text = '';
+  copyToClipboard(text, btn);
+}
+
+function copyToClipboard(text, btn) {
+  function done(ok) {
+    if (!btn || !ok) return;
+    var hadLabel = btn.querySelector('.copy-label');
+    var labelText = hadLabel ? hadLabel.textContent : '';
+    var original = btn.innerHTML;
+    btn.classList.add('copied');
+    btn.innerHTML = CHECK_ICON_SVG + (hadLabel ? '<span class="copy-label">Copied</span>' : '');
+    setTimeout(function () {
+      btn.classList.remove('copied');
+      btn.innerHTML = original;
+    }, 1400);
+  }
+
+  function fallback() {
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.top = '0';
+      ta.style.left = '0';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, ta.value.length);
+      var ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      done(ok);
+    } catch (e) { done(false); }
+  }
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function () { done(true); }).catch(fallback);
+  } else {
+    fallback();
+  }
 }
 
 // ── Download image as file ──────────────────────────────────────
@@ -1029,6 +1176,8 @@ async function doLookup() {
 
 function renderApp(app, appId) {
   _currentApp = app;
+  _copyRegistry = {};
+  _copyCounter = 0;
   var r = $('result');
   var artworkBase = app.artworkUrl512 || app.artworkUrl100 || app.artworkUrl60 || '';
 
@@ -1087,23 +1236,24 @@ function renderApp(app, appId) {
     { label: 'Current Version Ratings', value: app.userRatingCountForCurrentVersion ? app.userRatingCountForCurrentVersion.toLocaleString() : '\u2014' },
   ];
 
-  // Add supported devices (truncated)
   var devices = app.supportedDevices || [];
-  if (devices.length > 0) {
-    detailFields.push({
-      label: 'Supported Devices',
-      value: devices.slice(0, 15).join(', ') + (devices.length > 15 ? ' \u2026 (' + devices.length + ' total)' : '')
-    });
-  }
 
   var detailItems = detailFields.map(function (f) {
-    return '<div class="detail-item"><div class="label">' + f.label + '</div><div class="value">' + f.value + '</div></div>';
+    return '<div class="detail-item">' +
+      '<div class="label">' + f.label + '</div>' +
+      '<div class="value">' + f.value + '</div>' +
+      copyBtnHtml(typeof f.copy === 'string' ? f.copy : f.value, { label: 'Copy', title: 'Copy ' + f.label }) +
+      '</div>';
   }).join('');
 
+  function linkWithCopy(href, text) {
+    return '<span class="app-link-row"><a href="' + href + '" target="_blank" rel="noopener">' + text + '</a>' +
+      copyBtnHtml(href, { title: 'Copy ' + text + ' URL' }) + '</span>';
+  }
   var links = [];
-  if (app.trackViewUrl) links.push('<a href="' + app.trackViewUrl + '" target="_blank" rel="noopener">App Store</a>');
-  if (app.artistViewUrl) links.push('<a href="' + app.artistViewUrl + '" target="_blank" rel="noopener">Developer Page</a>');
-  if (app.sellerUrl) links.push('<a href="' + app.sellerUrl + '" target="_blank" rel="noopener">Website</a>');
+  if (app.trackViewUrl) links.push(linkWithCopy(app.trackViewUrl, 'App Store'));
+  if (app.artistViewUrl) links.push(linkWithCopy(app.artistViewUrl, 'Developer Page'));
+  if (app.sellerUrl) links.push(linkWithCopy(app.sellerUrl, 'Website'));
 
   var html = '';
 
@@ -1115,9 +1265,13 @@ function renderApp(app, appId) {
       '<a class="download-overlay" href="javascript:void(0)" onclick="downloadImage(\'' + getArtworkUrl(artworkBase, 1024).replace(/'/g, "\\'") + '\',\'icon_1024.jpg\')">' +
       '<span>\u2193 1024px</span></a></div>';
   }
+  var appTitle = app.trackName || app.trackCensoredName || '';
+  var devName = app.artistName || '';
   html += '<div class="app-meta">' +
-    '<h2>' + escapeHtml(app.trackName || app.trackCensoredName || '\u2014') + '</h2>' +
-    '<div class="developer">' + escapeHtml(app.artistName || '\u2014') + '</div>' +
+    '<h2>' + escapeHtml(appTitle || '\u2014') +
+      (appTitle ? copyBtnHtml(appTitle, { inline: true, title: 'Copy app name' }) : '') + '</h2>' +
+    '<div class="developer">' + escapeHtml(devName || '\u2014') +
+      (devName ? copyBtnHtml(devName, { inline: true, title: 'Copy developer name' }) : '') + '</div>' +
     '<div class="badges">' +
     '<div class="badge green"><span class="val">' + rating + ' \u2605</span> (' + ratingCount + ')</div>' +
     '<div class="badge orange">v<span class="val">' + (app.version || '?') + '</span></div>' +
@@ -1134,22 +1288,34 @@ function renderApp(app, appId) {
 
   // Description
   if (app.description) {
-    html += '<div class="section"><h3>Description</h3>' +
+    html += '<div class="section">' +
+      '<div class="section-head"><h3>Description</h3>' +
+      copyBtnHtml(app.description, { label: 'Copy', title: 'Copy description' }) + '</div>' +
       '<div class="description" id="descText">' + escapeHtml(app.description) + '</div>' +
-      '<div class="description-fade" id="descFade"></div>' +
-      '<button class="toggle-desc" onclick="toggleBlock(\'descText\', this)">Show more</button></div>';
+      '</div>';
   }
 
   // Release Notes
   if (app.releaseNotes) {
-    html += '<div class="section"><h3>What\'s New (v' + escapeHtml(app.version || '') + ')</h3>' +
+    html += '<div class="section">' +
+      '<div class="section-head"><h3>What\'s New</h3>' +
+      copyBtnHtml(app.releaseNotes, { label: 'Copy', title: 'Copy release notes' }) + '</div>' +
       '<div class="description" id="notesText">' + escapeHtml(app.releaseNotes) + '</div>' +
-      '<div class="description-fade" id="notesFade"></div>' +
-      '<button class="toggle-desc" onclick="toggleBlock(\'notesText\', this)">Show more</button></div>';
+      '</div>';
   }
 
   // Details
   html += '<div class="section"><h3>App Details</h3><div class="detail-grid">' + detailItems + '</div></div>';
+
+  // Supported Devices (scrollable, full list)
+  if (devices.length > 0) {
+    var devicesText = devices.join(', ');
+    html += '<div class="section">' +
+      '<div class="section-head"><h3>Supported Devices</h3>' +
+      copyBtnHtml(devicesText, { label: 'Copy', title: 'Copy supported devices' }) + '</div>' +
+      '<div class="description">' + escapeHtml(devicesText) + '</div>' +
+      '</div>';
+  }
 
   // Screenshots
   if (screenshots) {
@@ -1169,14 +1335,20 @@ function renderApp(app, appId) {
   }
 
   // API URL
-  html += '<div class="section"><h3>iTunes Lookup URL</h3>' +
-    '<div style="font-family:\'JetBrains Mono\',monospace;font-size:0.82rem;color:var(--accent2);word-break:break-all;">' +
-    '<a href="https://itunes.apple.com/lookup?id=' + appId + '" target="_blank" rel="noopener" style="color:var(--accent2);text-decoration:none;">' +
-    'https://itunes.apple.com/lookup?id=' + appId + '</a></div></div>';
+  var lookupUrl = 'https://itunes.apple.com/lookup?id=' + appId;
+  html += '<div class="section">' +
+    '<div class="section-head"><h3>iTunes Lookup URL</h3>' +
+    copyBtnHtml(lookupUrl, { label: 'Copy', title: 'Copy lookup URL' }) + '</div>' +
+    '<div class="url-row" style="font-family:\'JetBrains Mono\',monospace;font-size:0.82rem;color:var(--accent2);word-break:break-all;">' +
+    '<a href="' + lookupUrl + '" target="_blank" rel="noopener" style="color:var(--accent2);text-decoration:none;">' +
+    lookupUrl + '</a></div></div>';
 
   // Raw JSON
-  html += '<div class="section"><h3>Raw API Response</h3>' +
-    '<div class="raw-json">' + escapeHtml(JSON.stringify(app, null, 2)) + '</div></div>';
+  var rawJson = JSON.stringify(app, null, 2);
+  html += '<div class="section">' +
+    '<div class="section-head"><h3>Raw API Response</h3>' +
+    copyBtnHtml(rawJson, { label: 'Copy', title: 'Copy raw JSON' }) + '</div>' +
+    '<div class="raw-json">' + escapeHtml(rawJson) + '</div></div>';
 
   r.innerHTML = html;
   r.style.display = 'block';
@@ -1186,21 +1358,47 @@ function renderApp(app, appId) {
 // ── Render: Artist / Developer ──────────────────────────────────
 
 function renderArtist(artist, apps, artistId) {
+  _copyRegistry = {};
+  _copyCounter = 0;
   var r = $('result');
   var html = '';
 
+  var artistName = artist.artistName || 'Unknown Developer';
+  var artistType = artist.artistType || 'Developer';
+
   // Artist Header
   html += '<div class="app-header"><div class="app-meta">' +
-    '<h2>' + escapeHtml(artist.artistName || 'Unknown Developer') + '</h2>' +
-    '<div class="developer">' + escapeHtml(artist.artistType || 'Developer') + '</div>' +
+    '<h2>' + escapeHtml(artistName) +
+      copyBtnHtml(artistName, { inline: true, title: 'Copy developer name' }) + '</h2>' +
+    '<div class="developer">' + escapeHtml(artistType) +
+      copyBtnHtml(artistType, { inline: true, title: 'Copy artist type' }) + '</div>' +
     '<div class="badges">' +
     '<div class="badge">ID <span class="val">' + artistId + '</span></div>' +
     (artist.primaryGenreName ? '<div class="badge green"><span class="val">' + escapeHtml(artist.primaryGenreName) + '</span></div>' : '') +
     (apps.length > 0 ? '<div class="badge orange"><span class="val">' + apps.length + '</span> apps</div>' : '') +
     '</div>' +
     '<div class="app-links">' +
-    (artist.artistLinkUrl ? '<a href="' + artist.artistLinkUrl + '" target="_blank" rel="noopener">App Store</a>' : '') +
+    (artist.artistLinkUrl ? '<span class="app-link-row"><a href="' + artist.artistLinkUrl + '" target="_blank" rel="noopener">App Store</a>' +
+      copyBtnHtml(artist.artistLinkUrl, { title: 'Copy App Store URL' }) + '</span>' : '') +
     '</div></div></div>';
+
+  // Artist details — surface raw fields with copy buttons
+  var artistFields = [
+    { label: 'Artist ID', value: artistId },
+    { label: 'Artist Name', value: artistName },
+    { label: 'Artist Type', value: artistType },
+  ];
+  if (artist.primaryGenreName) artistFields.push({ label: 'Primary Genre', value: artist.primaryGenreName });
+  if (artist.primaryGenreId != null) artistFields.push({ label: 'Primary Genre ID', value: artist.primaryGenreId });
+  if (artist.artistLinkUrl) artistFields.push({ label: 'Artist Link URL', value: artist.artistLinkUrl });
+  var artistDetailItems = artistFields.map(function (f) {
+    return '<div class="detail-item">' +
+      '<div class="label">' + f.label + '</div>' +
+      '<div class="value">' + escapeHtml(String(f.value)) + '</div>' +
+      copyBtnHtml(f.value, { label: 'Copy', title: 'Copy ' + f.label }) +
+      '</div>';
+  }).join('');
+  html += '<div class="section"><h3>Developer Details</h3><div class="detail-grid">' + artistDetailItems + '</div></div>';
 
   // Apps by this developer
   if (apps.length > 0) {
@@ -1222,14 +1420,20 @@ function renderArtist(artist, apps, artistId) {
   }
 
   // API URL
-  html += '<div class="section"><h3>iTunes Lookup URL</h3>' +
-    '<div style="font-family:\'JetBrains Mono\',monospace;font-size:0.82rem;color:var(--accent2);word-break:break-all;">' +
-    '<a href="https://itunes.apple.com/lookup?id=' + artistId + '&entity=software" target="_blank" rel="noopener" style="color:var(--accent2);text-decoration:none;">' +
-    'https://itunes.apple.com/lookup?id=' + artistId + '&entity=software</a></div></div>';
+  var artistLookupUrl = 'https://itunes.apple.com/lookup?id=' + artistId + '&entity=software';
+  html += '<div class="section">' +
+    '<div class="section-head"><h3>iTunes Lookup URL</h3>' +
+    copyBtnHtml(artistLookupUrl, { label: 'Copy', title: 'Copy lookup URL' }) + '</div>' +
+    '<div class="url-row" style="font-family:\'JetBrains Mono\',monospace;font-size:0.82rem;color:var(--accent2);word-break:break-all;">' +
+    '<a href="' + artistLookupUrl + '" target="_blank" rel="noopener" style="color:var(--accent2);text-decoration:none;">' +
+    artistLookupUrl + '</a></div></div>';
 
   // Raw JSON
-  html += '<div class="section"><h3>Raw API Response</h3>' +
-    '<div class="raw-json">' + escapeHtml(JSON.stringify(artist, null, 2)) + '</div></div>';
+  var artistRawJson = JSON.stringify(artist, null, 2);
+  html += '<div class="section">' +
+    '<div class="section-head"><h3>Raw API Response</h3>' +
+    copyBtnHtml(artistRawJson, { label: 'Copy', title: 'Copy raw JSON' }) + '</div>' +
+    '<div class="raw-json">' + escapeHtml(artistRawJson) + '</div></div>';
 
   r.innerHTML = html;
   r.style.display = 'block';
@@ -1241,14 +1445,6 @@ function renderArtist(artist, apps, artistId) {
 function lookupById(trackId) {
   $('urlInput').value = 'https://apps.apple.com/app/id' + trackId;
   doLookup();
-}
-
-// ── Toggle description / notes blocks ───────────────────────────
-
-function toggleBlock(elementId, btn) {
-  var el = $(elementId);
-  el.classList.toggle('expanded');
-  btn.textContent = el.classList.contains('expanded') ? 'Show less' : 'Show more';
 }
 
 // ── Keyboard & paste events ─────────────────────────────────────
